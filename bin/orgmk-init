@@ -45,6 +45,17 @@ CleanUp ()
     if [ ! -z $FILE_SRC_UPDT ]; then
         rm -f $FILE_SRC_UPDT
     fi
+
+    # restore backed up target file if it hasn't been produced
+    if [ ! -z $FILE_SRC_ORIG_ORIG ]; then
+        if [ -r $FILE_SRC_ORIG_ORIG ]; then
+            if [ -r $FILE_SRC_ORIG ]; then
+                echo MM $FILE_SRC_ORIG_ORIG
+                printf "Removing Subtree File $FILE_SRC_ORIG...\n"
+                rm $FILE_SRC_ORIG
+            fi
+        fi
+    fi
 }
 
     cat << EOF
@@ -84,28 +95,41 @@ while true; do
 done
 # now do something with $@
 
-if [ $# -ne 1 ]; then
+if [ $# -lt 1 ] || [ $# -gt 2 ]  ; then
     Usage
 fi
 
 FILE_SRC_ORIG=$1
+if [ $# -eq 2 ] ; then
+    WITH_SUBTREE="yes"
+    SUBTREE=$2
+fi
+
 if [ ! -r "$FILE_SRC_ORIG" ]; then
     die "Cannot read file $FILE_SRC_ORIG"
+fi
+
+if [ "x$WITH_SUBTREE" == "xyes" ] ; then
+    FILE_SRC_SUBTREE="${FILE_SRC_ORIG%.*}.$SUBTREE.org"
+    cp -f $FILE_SRC_ORIG $FILE_SRC_SUBTREE
+    FILE_SRC_ORIG_ORIG=$FILE_SRC_ORIG
+    FILE_SRC_ORIG=$FILE_SRC_SUBTREE
 fi
 
 FILE_SRC_UPDT="${FILE_SRC_ORIG%.*}.orgmk" # replace extension
 # The temporary file only differ by its extension (`.orgmk'), so that the
 # exported file will be named <orig file name>.<backend ext>.
 
-FILE_LOG="${FILE_SRC_ORIG%.*}.log"
-rm -f $FILE_LOG
-
 FILE_TARGET="${FILE_SRC_ORIG%.*}.$TARGET_EXT"
+
+FILE_LOG="${FILE_TARGET%.*}.log"
+rm -f $FILE_LOG
 
 # back up previous version of target file
 if [ -r $FILE_TARGET ]; then
     mv $FILE_TARGET $FILE_TARGET.orig
 fi
+echo $FILE_TARGET
 
 EMACS=emacs
 
